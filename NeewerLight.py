@@ -64,7 +64,7 @@ class NeewerLight:
         command.append(tag)
         command.append(length)
         command.extend(vals)
-        return NeewerLight.appendChecksum(command)
+        return bytearray(NeewerLight.appendChecksum(command))
 
     async def set_color(self, rgb: Tuple[int,int,int]):
         r, g, b = rgb

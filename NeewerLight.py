@@ -8,14 +8,14 @@ logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger("NeewerLight")
 LOGGER.setLevel(logging.DEBUG)
 
-NEEWER_SERVICE_UUID = "69400001-B5A3-F393-E0A9-E50E24DCCA99"
-NEEWER_CONTROL_UUID = "69400002-B5A3-F393-E0A9-E50E24DCCA99"
-NEEWER_READ_UUID = "69400003-B5A3-F393-E0A9-E50E24DCCA99"
+NEEWER_SERVICE_UUID = "69400001-b5a3-f393-e0a9-e50e24dcca99"
+NEEWER_CONTROL_UUID = "69400002-b5a3-f393-e0a9-e50e24dcca99"
+NEEWER_READ_UUID = "69400003-b5a3-f393-e0a9-e50e24dcca99"
 # these commands are in the format 0x78 (prefix), <something>, length of data following, data, checksum
-NEEWER_POWER_ON = [0x78,0x81,0x01,0x01,0xFB]
-NEEWER_POWER_OFF = [0x78,0x81,0x01,0x02,0xFC]
-NEEWER_READ_REQUEST = [0x78,0x84,0x00,0xFC]
-NEEWER_UPDATE_PREFIX = [0x78,0x01,0x01]
+NEEWER_POWER_ON = bytearray([0x78,0x81,0x01,0x01,0xFB])
+NEEWER_POWER_OFF = bytearray([0x78,0x81,0x01,0x02,0xFC])
+NEEWER_READ_REQUEST = bytearray([0x78,0x84,0x00,0xFC])
+NEEWER_UPDATE_PREFIX = bytearray([0x78,0x01,0x01])
 NEEWER_COMMAND_PREFIX = 0x78
 NEEWER_COMMAND_RGB = 0x86
 NEEWER_COMMAND_CCT = 0x87
@@ -44,10 +44,19 @@ class NeewerLight:
     async def init(self):
         try:
             await self.device.connect(timeout=10.0)
-            print(self.device.services)
-            print(await self.device.get_services())
+            print("Services: "+str([v.uuid for k,v in self.device.services.services.items()]))
+            print("Characteristics: "+str([v.uuid for k,v in self.device.services.characteristics.items()]))
         finally:
             await self.device.disconnect()
+            
+    def _write(self, characteristic, data):
+        LOGGER.debug("Writing: "+(''.join(format(x, ' 03x') for x in data))+" to "+characteristic)
+        #try:
+        if not self.device.is_connected:
+            await self.device.connect()
+        await self.device.write_gatt_char(characteristic, data)
+        #except Exception:
+            
 
     def composeCommand(self, tag, vals):
         length = len(vals)
@@ -69,7 +78,11 @@ class NeewerLight:
 
     async def powerOn(self):
         LOGGER.debug("Sending power on")
-        await self.device.write_gatt_char(self.controlGATT, NEEWER_POWER_ON)
+        if not self.device.is_connected:
+            await self.device.connect()
+        await self.device.write_gatt_char(self.controlGATT, bytearray([0x69,0x69,0x69]))
+        await self.device.write_gatt_char(self.controlGATT, bytearray([0x69, 0x69, 0x69]))
+        await self.device.write_gatt_char(self.readGATT, bytearray([0x69, 0x69, 0x69]))
         self.isPoweredOn = True
 
     async def powerOff(self):
@@ -138,7 +151,8 @@ async def main():
     if len(devices):
         d = NeewerLight(devices[0])
         await d.init()
-        input("Pause")
+        # input("Pause")
         await d.powerOn()
+        print("done")
 
 asyncio.run(main())

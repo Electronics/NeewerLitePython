@@ -49,7 +49,7 @@ class NeewerLight:
         finally:
             await self.device.disconnect()
             
-    def _write(self, characteristic, data):
+    async def _write(self, characteristic, data):
         LOGGER.debug("Writing: "+(''.join(format(x, ' 03x') for x in data))+" to "+characteristic)
         #try:
         if not self.device.is_connected:
@@ -74,37 +74,33 @@ class NeewerLight:
         v = int(v*100)
         #TODO convert to Hue/Sat
         cmd = self.composeCommand(NEEWER_COMMAND_RGB, [h&0xFF,(h>>8)&0xFF,s&0xff,v&0xff])
-        self.device.write_gatt_char(NEEWER_CONTROL_UUID, cmd)
+        await self._write(NEEWER_CONTROL_UUID, cmd)
 
     async def powerOn(self):
         LOGGER.debug("Sending power on")
-        if not self.device.is_connected:
-            await self.device.connect()
-        await self.device.write_gatt_char(self.controlGATT, bytearray([0x69,0x69,0x69]))
-        await self.device.write_gatt_char(self.controlGATT, bytearray([0x69, 0x69, 0x69]))
-        await self.device.write_gatt_char(self.readGATT, bytearray([0x69, 0x69, 0x69]))
+        await self._write(self.controlGATT, NEEWER_POWER_ON)
         self.isPoweredOn = True
 
     async def powerOff(self):
         LOGGER.debug("Sending power off")
-        await self.device.write_gatt_char(self.controlGATT, NEEWER_POWER_OFF)
+        await self._write(self.controlGATT, NEEWER_POWER_OFF)
         self.isPoweredOn = False
 
     async def sendReadRequest(self):
         LOGGER.debug("Sending read request")
-        await self.device.write_gatt_char(self.controlGATT, NEEWER_READ_REQUEST)
+        await self._write(self.controlGATT, NEEWER_READ_REQUEST)
 
-    async def readStatus(self, callback):
+    async def readStatus(self):
         if not self.device.is_connected:
-            await self.device.connect()
+            await self.device.connect(timeout=10.0)
             # check characteristics
 
         future = asyncio.get_event_loop().create_future()
-        await self._device.start_notify(self.readGATT, create_status_callback(future))
+        await self.device.start_notify(self.readGATT, create_status_callback(future))
         await self.device.write_gatt_char(self.controlGATT, NEEWER_READ_REQUEST)
 
-        await asyncio.wait_for(future, 5.0)
-        await self._device.stop_notify(self.readGATT)
+        await asyncio.wait_for(future, 10.0)
+        await self.device.stop_notify(self.readGATT)
 
         res = future.result()
         if res[0]==NEEWER_UPDATE_PREFIX[0] and res[1]==NEEWER_UPDATE_PREFIX[1] and res[2]==NEEWER_UPDATE_PREFIX[2]:
@@ -150,9 +146,9 @@ async def main():
     devices = await NeewerLight.discover()
     if len(devices):
         d = NeewerLight(devices[0])
-        await d.init()
+        # await d.init()
         # input("Pause")
-        await d.powerOn()
+        await d.set_color((255,127,0))
         print("done")
 
 asyncio.run(main())

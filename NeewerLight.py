@@ -1,3 +1,4 @@
+import traceback
 from typing import Tuple
 from bleak import BleakClient, BleakScanner
 import colorsys
@@ -39,15 +40,26 @@ class NeewerLight:
         self.device = BleakClient(device, use_cached=False)
         self.controlGATT = controlCharacteristic
         self.readGATT = readCharacteristic
-        self.isPoweredOn = False
+        self._isPoweredOn = False
+        self._mac = device
+        self._rgbColor = None
+        self._brightness = None
 
-    async def init(self):
-        try:
-            await self.device.connect(timeout=10.0)
-            print("Services: "+str([v.uuid for k,v in self.device.services.services.items()]))
-            print("Characteristics: "+str([v.uuid for k,v in self.device.services.characteristics.items()]))
-        finally:
-            await self.device.disconnect()
+    @property
+    def mac(self):
+        return self.mac
+
+    @property
+    def is_on(self):
+        return self._isPoweredOn
+
+    @property
+    def rgb_color(self):
+        return self._rgbColor
+
+    @property
+    def white_brightness(self):
+        return self._brightness
             
     async def _write(self, characteristic, data):
         LOGGER.debug("Writing: "+(''.join(format(x, ' 03x') for x in data))+" to "+characteristic)
@@ -66,29 +78,60 @@ class NeewerLight:
         command.extend(vals)
         return bytearray(NeewerLight.appendChecksum(command))
 
-    async def set_color(self, rgb: Tuple[int,int,int]):
+    async def set_color(self, rgb: Tuple[int,int,int], brightness = None):
+        # rgb 0-255, brightness 0-100
         r, g, b = rgb
+        self._rgb_color = (r,g,b) # TODO temporary as we don't read the color back from the light at the moment
         h,s,v = colorsys.rgb_to_hsv(r/255.0,g/255.0,b/255.0)
         h = int(h*360)
         s = int(s*100)
-        v = int(v*100)
-        #TODO convert to Hue/Sat
+        v = int(v * 100)
+        if brightness is not None:
+            v = brightness
+        self._brightness = v # TODO temporary as we don't read the color back from the light at the moment
         cmd = self.composeCommand(NEEWER_COMMAND_RGB, [h&0xFF,(h>>8)&0xFF,s&0xff,v&0xff])
         await self._write(NEEWER_CONTROL_UUID, cmd)
+
+    async def set_white(self, intensity: int):
+        # brightness 0-100
+        await self.set_color((255,255,255),intensity)
+
+    async def turn_on(self):
+        await self.powerOn()
+
+    async def turn_off(self):
+        await self.powerOff()
+
+    async def update(self):
+        try:
+            await self.readStatus()
+        except (Exception) as error:
+            LOGGER.error("Error getting status: %s",error)
+            track = traceback.format_exc()
+            LOGGER.debug(track)
+
+    async def disconnect(self):
+        if self.device.is_connected:
+            await self.device.disconnect()
 
     async def powerOn(self):
         LOGGER.debug("Sending power on")
         await self._write(self.controlGATT, NEEWER_POWER_ON)
-        self.isPoweredOn = True
+        self._isPoweredOn = True
 
     async def powerOff(self):
         LOGGER.debug("Sending power off")
         await self._write(self.controlGATT, NEEWER_POWER_OFF)
-        self.isPoweredOn = False
+        self._isPoweredOn = False
 
     async def sendReadRequest(self):
         LOGGER.debug("Sending read request")
         await self._write(self.controlGATT, NEEWER_READ_REQUEST)
+
+    async def setScene(self, scene, brightness=100):
+        # scene 1-9, brightness 0-100
+        # 1: police sirens, 2: police siren but stuck?, 3: ambulance?, 4: party mode A, 5: party mode B (A but faster), 6: party mode C (candlelight), 7-9: lightning
+        await self._write(self.controlGATT, self.composeCommand(NEEWER_COMMAND_SCENE, [brightness&0xff,scene&0x0f]))
 
     async def readStatus(self):
         if not self.device.is_connected:
@@ -107,6 +150,8 @@ class NeewerLight:
             LOGGER.info("Update prefix")
         LOGGER.info("Read data: %s",str(res))
         hexPrint(res)
+        #TODO: validate checksum?
+        #TODO: don't actually know what RGB values return, it's not in the swift implementation
 
 
         # self.device.start_notify(self.readGATT, )
@@ -118,7 +163,7 @@ class NeewerLight:
         devices = await BleakScanner.discover()
         LOGGER.debug("Discovered devices: %s", [{"address": device.address, "name": device.name} for device in devices])
         return [device for device in devices if
-                device.name is not None and device.name.lower().startswith("laurie")]
+                device.name is not None and (device.name.lower().startswith("neewer") or device.name.lower().startswith("laurie"))]
 
     @classmethod
     def appendChecksum(cls, data: list):
@@ -142,13 +187,13 @@ class NeewerLight:
         return False
 
 
-async def main():
-    devices = await NeewerLight.discover()
-    if len(devices):
-        d = NeewerLight(devices[0])
-        # await d.init()
-        # input("Pause")
-        await d.set_color((255,127,0))
-        print("done")
-
-asyncio.run(main())
+# async def main():
+#     devices = await NeewerLight.discover()
+#     if len(devices):
+#         d = NeewerLight(devices[0])
+#         # await d.init()
+#         # input("Pause")
+#         await d.set_color((255,127,0))
+#         print("done")
+#
+# asyncio.run(main())

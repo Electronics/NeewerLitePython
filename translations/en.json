@@ -1,0 +1,35 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "mac": "Bluetooth MAC address",
+                    "name": "Name"
+                },
+                "title": "Pick a Neewer light. Make sure the light is capable of RGB!"
+            },
+            "validate": {
+                "data": {
+                    "retry": "Re-validate connection?",
+                    "flicker": "Did the light blink?"
+                },
+                "title": "Validate NeewerLight connection"
+            },
+            "manual": {
+                "data": {
+                    "mac": "Bluetooth MAC address",
+                    "name": "Name"
+                },
+                "title": "Enter bluetooth MAC address"
+            }
+        },
+        "error": {
+            "connect": "Unable to connect to Neewer light"
+        },
+        "abort": {
+            "cannot_validate": "Unable to validate Neewer light",
+            "cannot_connect": "Unable to connect to Neewer light"
+        }
+    },
+    "title": "NeewerLight"
+}

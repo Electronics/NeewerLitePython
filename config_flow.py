@@ -1,5 +1,5 @@
 import asyncio
-from NeewerLight import NeewerLight
+from .NeewerLight import NeewerLight
 from typing import Any
 
 from homeassistant import config_entries
@@ -19,6 +19,7 @@ MANUAL_MAC = "manual"
 
 
 class NeewerLightFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+	LOGGER.debug("Created config flow handler")
 	VERSION = 1
 	CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 

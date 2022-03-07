@@ -2,7 +2,7 @@ import logging
 import voluptuous as vol
 from typing import Any, Optional, Tuple
 
-from NeewerLight import NeewerLight
+from .NeewerLight import NeewerLight
 
 from homeassistant.const import CONF_MAC
 import homeassistant.helpers.config_validation as cv

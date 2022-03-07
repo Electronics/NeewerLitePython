@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import CONF_MAC
 
-from NeewerLight import NeewerLight
+from .NeewerLight import NeewerLight
 
 DOMAIN = "neewerlight"
 PLATFORMS = ["light"]

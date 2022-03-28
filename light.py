@@ -13,6 +13,10 @@ from homeassistant.helpers import device_registry
 
 DOMAIN = "neewerlight"
 
+logging.basicConfig(level=logging.DEBUG)
+LOGGER = logging.getLogger("NeewerLightEntity")
+LOGGER.setLevel(logging.DEBUG)
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 	vol.Required(CONF_MAC): cv.string
 })
@@ -44,6 +48,7 @@ class NeewerLightEntity(LightEntity):
 		if self._instance.rgb_color:
 			return max(self._instance.rgb_color)
 
+		LOGGER.info("Instance has no brightness attributes?")
 		return None
 
 	@property
@@ -78,6 +83,8 @@ class NeewerLightEntity(LightEntity):
 
 	def _transform_color_brightness(self, color: Tuple[int, int, int], set_brightness: int):
 		rgb = match_max_scale((255,), color)
+		LOGGER.debug("Transform scaled: "+str(rgb))
+		LOGGER.debug("Transforming with brightness: "+str(set_brightness))
 		res = tuple(color * set_brightness // 255 for color in rgb)
 		return res
 
@@ -90,16 +97,21 @@ class NeewerLightEntity(LightEntity):
 				await self._instance.set_white(kwargs[ATTR_WHITE])
 
 		elif ATTR_RGB_COLOR in kwargs:
+			LOGGER.info("Colour change: "+str(kwargs[ATTR_RGB_COLOR]))
 			if kwargs[ATTR_RGB_COLOR] != self.rgb_color:
-				color = kwargs[ATTR_RGB_COLOR]
+				#color = kwargs[ATTR_RGB_COLOR]
+				bright = self.brightness
 				if ATTR_BRIGHTNESS in kwargs:
-					color = self._transform_color_brightness(color, kwargs[ATTR_BRIGHTNESS])
+					bright = kwargs[ATTR_BRIGHTNESS]
+					#color = self._transform_color_brightness(color, kwargs[ATTR_BRIGHTNESS])
 				else:
-					color = self._transform_color_brightness(color, self.brightness)
-				await self._instance.set_color(color)
+					LOGGER.debug("Brightness not given, using: "+str(self.brightness))
+					#color = self._transform_color_brightness(color, self.brightness)
+				await self._instance.set_color(kwargs[ATTR_RGB_COLOR],bright)
 
 		elif ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness and self.rgb_color != None:
-			await self._instance.set_color(self._transform_color_brightness(self.rgb_color, kwargs[ATTR_BRIGHTNESS]))
+			LOGGER.debug("Just changing brightness (of coloured rgb) with brightness: "+str(kwargs[ATTR_BRIGHTNESS]))
+			await self._instance.set_color(self.rgb_color, kwargs[ATTR_BRIGHTNESS])
 
 	async def async_turn_off(self, **kwargs: Any) -> None:
 		await self._instance.turn_off()

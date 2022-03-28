@@ -42,7 +42,7 @@ class NeewerLight:
         self.readGATT = readCharacteristic
         self._isPoweredOn = False
         self._mac = device
-        self._rgbColor = None
+        self._rgbColor = (0,0,0)
         self._brightness = None
 
     @property
@@ -58,13 +58,9 @@ class NeewerLight:
         return self._rgbColor
 
     @property
-    def rgb_color(self):
-        return self._rgbColor
-
-    @property
     def white_brightness(self):
         return self._brightness
-            
+
     async def _write(self, characteristic, data):
         LOGGER.debug("Writing: "+(''.join(format(x, ' 03x') for x in data))+" to "+characteristic)
         #try:
@@ -72,7 +68,7 @@ class NeewerLight:
             await self.device.connect()
         await self.device.write_gatt_char(characteristic, data)
         #except Exception:
-            
+
 
     def composeCommand(self, tag, vals):
         length = len(vals)
@@ -83,15 +79,18 @@ class NeewerLight:
         return bytearray(NeewerLight.appendChecksum(command))
 
     async def set_color(self, rgb: Tuple[int,int,int], brightness = None):
+        LOGGER.info("Set colour: "+str(rgb)+","+str(brightness))
         # rgb 0-255, brightness 0-100
         r, g, b = rgb
-        self._rgb_color = (r,g,b) # TODO temporary as we don't read the color back from the light at the moment
+        self._rgbColor = (r,g,b) # TODO temporary as we don't read the color back from the light at the moment
         h,s,v = colorsys.rgb_to_hsv(r/255.0,g/255.0,b/255.0)
         h = int(h*360)
         s = int(s*100)
         v = int(v * 100)
+        LOGGER.info("turned into HSV: "+str(h)+" "+str(s)+" "+str(v))
         if brightness is not None:
             v = brightness
+            LOGGER.info("Brightness overwrite: "+str(v))
         self._brightness = v # TODO temporary as we don't read the color back from the light at the moment
         cmd = self.composeCommand(NEEWER_COMMAND_RGB, [h&0xFF,(h>>8)&0xFF,s&0xff,v&0xff])
         await self._write(NEEWER_CONTROL_UUID, cmd)

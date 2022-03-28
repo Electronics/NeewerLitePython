@@ -41,7 +41,7 @@ class NeewerLightEntity(LightEntity):
 		if self._instance.white_brightness:
 			return self._instance.white_brightness
 
-		if self._instance._rgb_color:
+		if self._instance.rgb_color:
 			return max(self._instance.rgb_color)
 
 		return None

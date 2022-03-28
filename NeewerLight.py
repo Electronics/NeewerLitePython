@@ -47,11 +47,15 @@ class NeewerLight:
 
     @property
     def mac(self):
-        return self.mac
+        return self._mac
 
     @property
     def is_on(self):
         return self._isPoweredOn
+
+    @property
+    def rgb_color(self):
+        return self._rgbColor
 
     @property
     def rgb_color(self):

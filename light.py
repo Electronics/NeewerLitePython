@@ -13,12 +13,13 @@ from homeassistant.components.light import (COLOR_MODE_RGB, PLATFORM_SCHEMA,
 											LightEntity, ATTR_RGB_COLOR, ATTR_BRIGHTNESS, COLOR_MODE_WHITE, ATTR_WHITE, SUPPORT_TRANSITION, ATTR_TRANSITION)
 from homeassistant.util.color import (match_max_scale)
 from homeassistant.helpers import device_registry
+from homeassistant.core import callback
 
 DOMAIN = "neewerlight"
 
-logging.basicConfig(level=logging.DEBUG)
+#logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger("NeewerLightEntity")
-LOGGER.setLevel(logging.DEBUG)
+LOGGER.setLevel(logging.WARN)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 	vol.Required(CONF_MAC): cv.string
@@ -62,6 +63,26 @@ class NeewerLightEntity(LightEntity):
 		return self._instance.is_on
 
 	@property
+	def should_poll(self):
+		return False
+
+	@property
+	def fade_time(self):
+		return self._fade_time
+
+	@fade_time.setter
+	def fade_time(self, value):
+		self._fade_time = value
+
+	@callback
+	def _schedule_immediate_update(self):
+		self.async_schedule_update_ha_state(True)
+
+	def update(self):
+		"""Fetch update state."""
+		# Nothing to return
+
+	@property
 	# RGB color/brightness based on https://github.com/home-assistant/core/issues/51175
 	def rgb_color(self):
 		if self._instance.rgb_color:
@@ -70,15 +91,15 @@ class NeewerLightEntity(LightEntity):
 
 	@property
 	def color_mode(self):
-		if self._instance.rgb_color:
-			if self._instance.rgb_color == (255, 255, 255):
-				return COLOR_MODE_WHITE
-			return COLOR_MODE_RGB
-		return None
+		return COLOR_MODE_RGB
 
 	@property
 	def supported_features(self):
 		return self._attr_supported_features
+
+	@property
+	def should_poll(self):
+		return False
 
 	@property
 	def device_info(self):
@@ -110,6 +131,7 @@ class NeewerLightEntity(LightEntity):
 
 		if ATTR_WHITE in kwargs:
 			if kwargs[ATTR_WHITE] != self.brightness:
+				LOGGER.info("White set")
 				await self._async_turn_on(kwargs[ATTR_WHITE], (255,255,255), transition)
 
 		elif ATTR_RGB_COLOR in kwargs:
@@ -129,6 +151,8 @@ class NeewerLightEntity(LightEntity):
 			LOGGER.debug("Just changing brightness (of coloured rgb) with brightness: "+str(kwargs[ATTR_BRIGHTNESS])+" with transition "+str(transition))
 			await self._async_turn_on(kwargs[ATTR_BRIGHTNESS], self.rgb_color, transition)
 
+		self.async_schedule_update_ha_state()
+
 	async def _async_turn_on(self, brightness, color, transition=0.0):
 		''' helper for controling whether to call doTransition or just set the color immediately '''
 		if transition==0.0:
@@ -140,7 +164,7 @@ class NeewerLightEntity(LightEntity):
 		self._isTransitioning = True
 		LOGGER.info("Starting transition to "+str(endBrightness)+" "+str(endColor)+" with time "+str(transition)+", msPerFrame: "+str(msPerFrame))
 
-		numFrames = max(int(transition/msPerFrame),1)
+		numFrames = max(int(transition*1000/msPerFrame),1)
 		originalBrightness = self.brightness
 		originalColor = self.rgb_color
 		if originalColor is None:
@@ -148,30 +172,38 @@ class NeewerLightEntity(LightEntity):
 		if originalBrightness is None:
 			originalBrightness = 0
 
+		LOGGER.debug("Orig: "+str(originalColor))
+
 		for i in range(1,numFrames+1):
 			if not self._isTransitioning:
 				break
 			newColor = [
-				int(originalColor[0] + i * (endColor[0] - originalColor[0])),
-				int(originalColor[1] + i * (endColor[1] - originalColor[1])),
-				int(originalColor[2] + i * (endColor[2] - originalColor[2]))
+				int(originalColor[0] + i * (endColor[0] - originalColor[0]) / numFrames),
+				int(originalColor[1] + i * (endColor[1] - originalColor[1]) / numFrames),
+				int(originalColor[2] + i * (endColor[2] - originalColor[2]) / numFrames)
 			]
-			newBrightness = int(originalBrightness + i*(endBrightness-originalBrightness))
+			newBrightness = int(originalBrightness + i*(endBrightness-originalBrightness) / numFrames)
+
+			LOGGER.debug("Loop: "+str(i)+"/"+str(numFrames)+" c "+str(newColor)+" b "+str(newBrightness))
 
 			timeStart = time.time()
 			await self._instance.set_color(newColor,newBrightness)
 			timeTaken = time.time() - timeStart
+			LOGGER.debug("took "+str(timeTaken)+" seconds to execute set_color")
 			if timeTaken*1000 < msPerFrame:
-				await asyncio.sleep(msPerFrame-timeTaken)
+				waitTime = msPerFrame/1000-timeTaken
+				LOGGER.debug("Waiting "+str(waitTime)+"ms")
+				await asyncio.sleep(waitTime)
 			else:
 				LOGGER.debug("msPerFrame exceeded due to long set_color, running as fast as possible")
-
+		LOGGER.info("Finished transition")
 		self._isTransitioning = False
 
 
 
 	async def async_turn_off(self, **kwargs: Any) -> None:
 		await self._instance.turn_off()
+		self.async_schedule_update_ha_state()
 
 	async def async_update(self) -> None:
 		await self._instance.update()

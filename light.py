@@ -121,12 +121,12 @@ class NeewerLightEntity(LightEntity):
 					bright = kwargs[ATTR_BRIGHTNESS]
 					#color = self._transform_color_brightness(color, kwargs[ATTR_BRIGHTNESS])
 				else:
-					LOGGER.debug("Brightness not given, using: "+str(self.brightness)+" with transition "+transition)
+					LOGGER.debug("Brightness not given, using: "+str(self.brightness)+" with transition "+str(transition))
 					#color = self._transform_color_brightness(color, self.brightness)
 				await self._async_turn_on(bright, kwargs[ATTR_RGB_COLOR], transition)
 
 		elif ATTR_BRIGHTNESS in kwargs and kwargs[ATTR_BRIGHTNESS] != self.brightness and self.rgb_color != None:
-			LOGGER.debug("Just changing brightness (of coloured rgb) with brightness: "+str(kwargs[ATTR_BRIGHTNESS])+" with transition "+transition)
+			LOGGER.debug("Just changing brightness (of coloured rgb) with brightness: "+str(kwargs[ATTR_BRIGHTNESS])+" with transition "+str(transition))
 			await self._async_turn_on(kwargs[ATTR_BRIGHTNESS], self.rgb_color, transition)
 
 	async def _async_turn_on(self, brightness, color, transition=0.0):

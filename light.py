@@ -49,14 +49,7 @@ class NeewerLightEntity(LightEntity):
 
 	@property
 	def brightness(self):
-		if self._instance.white_brightness:
-			return self._instance.white_brightness
-
-		if self._instance.rgb_color:
-			return max(self._instance.rgb_color)
-
-		LOGGER.info("Instance has no brightness attributes?")
-		return None
+		return self._instance.brightness
 
 	@property
 	def is_on(self) -> Optional[bool]:
@@ -172,7 +165,7 @@ class NeewerLightEntity(LightEntity):
 		if originalBrightness is None:
 			originalBrightness = 0
 
-		LOGGER.debug("Orig: "+str(originalColor))
+		LOGGER.debug("Orig: "+str(originalColor)+" bright: "+str(originalBrightness))
 
 		for i in range(1,numFrames+1):
 			if not self._isTransitioning:

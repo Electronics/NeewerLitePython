@@ -43,7 +43,7 @@ class NeewerLight:
         self._isPoweredOn = False
         self._mac = device
         self._rgbColor = (0,0,0)
-        self._brightness = None
+        self._brightness = 0
 
     @property
     def mac(self):
@@ -58,7 +58,7 @@ class NeewerLight:
         return self._rgbColor
 
     @property
-    def white_brightness(self):
+    def brightness(self):
         return self._brightness
 
     async def _write(self, characteristic, data):

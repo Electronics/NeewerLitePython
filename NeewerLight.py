@@ -86,12 +86,12 @@ class NeewerLight:
         h,s,v = colorsys.rgb_to_hsv(r/255.0,g/255.0,b/255.0)
         h = int(h*360)
         s = int(s*100)
-        v = self._brightness
+        v = int(self._brightness*100/256) # don't use v from colour, keep the same brightness
         LOGGER.info("turned into HSV: "+str(h)+" "+str(s)+" "+str(v))
         if brightness is not None:
             v = int(brightness*100/256)
             LOGGER.info("Brightness overwrite: "+str(v))
-            self._brightness = v # TODO temporary as we don't read the color back from the light at the moment
+            self._brightness = brightness # TODO temporary as we don't read the color back from the light at the moment
         cmd = self.composeCommand(NEEWER_COMMAND_RGB, [h&0xFF,(h>>8)&0xFF,s&0xff,v&0xff])
         await self._write(NEEWER_CONTROL_UUID, cmd)
 

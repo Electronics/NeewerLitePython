@@ -160,7 +160,7 @@ class NeewerLightEntity(LightEntity):
 		else:
 			asyncio.ensure_future(self.async_doTransition(brightness,color,transition))
 
-	async def async_doTransition(self, endBrightness, endColor, transition, msPerFrame=20):
+	async def async_doTransition(self, endBrightness, endColor, transition, msPerFrame=40):
 		self._isTransitioning = True
 		LOGGER.info("Starting transition to "+str(endBrightness)+" "+str(endColor)+" with time "+str(transition)+", msPerFrame: "+str(msPerFrame))
 

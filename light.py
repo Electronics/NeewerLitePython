@@ -187,7 +187,8 @@ class NeewerLightEntity(LightEntity):
 			LOGGER.debug("Loop: "+str(i)+"/"+str(numFrames)+" c "+str(newColor)+" b "+str(newBrightness))
 
 			timeStart = time.time()
-			await self._instance.set_color(newColor,newBrightness)
+			if newColor != self.rgb_color and newBrightness != self.brightness:
+				await self._instance.set_color(newColor,newBrightness)
 			timeTaken = time.time() - timeStart
 			LOGGER.debug("took "+str(timeTaken)+" seconds to execute set_color")
 			if timeTaken*1000 < msPerFrame:

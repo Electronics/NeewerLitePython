@@ -79,7 +79,7 @@ class NeewerLight:
         return bytearray(NeewerLight.appendChecksum(command))
 
     async def set_color(self, rgb: Tuple[int,int,int], brightness = None):
-        LOGGER.info("Set colour: "+str(rgb)+","+str(brightness))
+        LOGGER.info(str(self._mac)+": Set colour: "+str(rgb)+","+str(brightness))
         # rgb 0-255, brightness 0-255
         r, g, b = rgb
         self._rgbColor = (r,g,b) # TODO temporary as we don't read the color back from the light at the moment
@@ -118,12 +118,12 @@ class NeewerLight:
             await self.device.disconnect()
 
     async def powerOn(self):
-        LOGGER.debug("Sending power on")
+        LOGGER.debug(str(self._mac)+" Sending power on")
         await self._write(self.controlGATT, NEEWER_POWER_ON)
         self._isPoweredOn = True
 
     async def powerOff(self):
-        LOGGER.debug("Sending power off")
+        LOGGER.debug(str(self._mac)+" Sending power off")
         await self._write(self.controlGATT, NEEWER_POWER_OFF)
         self._isPoweredOn = False
 

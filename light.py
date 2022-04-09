@@ -40,7 +40,10 @@ class NeewerLightEntity(LightEntity):
 		self._color_mode = None
 		self._attr_name = name
 		self._attr_unique_id = self._instance.mac
-		self._isTransitioning = False
+		self._isTransitioning = asyncio.Event()
+		self._stopTransition = asyncio.Event()
+		self._hasExitedTransition = asyncio.Event()
+		self._transitionQueueCounter = 0
 		self._fade_time = 0.0
 
 	@property
@@ -113,10 +116,6 @@ class NeewerLightEntity(LightEntity):
 		return res
 
 	async def async_turn_on(self, **kwargs: Any) -> None:
-		if self._isTransitioning:
-			self._isTransitioning = False
-			LOGGER.info("Canceled transition due to new update")
-
 		if not self.is_on:
 			await self._instance.turn_on()
 
@@ -149,12 +148,26 @@ class NeewerLightEntity(LightEntity):
 	async def _async_turn_on(self, brightness, color, transition=0.0):
 		''' helper for controling whether to call doTransition or just set the color immediately '''
 		if transition==0.0:
+			if self._isTransitioning.is_set():
+				self._stopTransition.set()
+				LOGGER.info("Canceling transition due to new set-colour")
 			await self._instance.set_color(color,brightness)
 		else:
 			asyncio.ensure_future(self.async_doTransition(brightness,color,transition))
 
 	async def async_doTransition(self, endBrightness, endColor, transition, msPerFrame=40):
-		self._isTransitioning = True
+		if self._isTransitioning.is_set():
+			LOGGER.info("Awaiting transition finish due to new set-colour")
+			self._stopTransition.set()
+			self._transitionQueueCounter += 1
+			ticket = self._transitionQueueCounter # handles multiple transitions getting called and blocked at the same point
+			await self._hasExitedTransition.wait()
+			self._hasExitedTransition.clear()
+			if self._transitionQueueCounter != ticket:
+				LOGGER.info("Transition canceled by another waiting transition")
+				return # canceled by another newer transition
+		self._isTransitioning.set()
+		self._hasExitedTransition.clear() # if there was an already completed transition a while ago
 		LOGGER.info("Starting transition to "+str(endBrightness)+" "+str(endColor)+" with time "+str(transition)+", msPerFrame: "+str(msPerFrame))
 
 		numFrames = max(int(transition*1000/msPerFrame),1)
@@ -168,7 +181,7 @@ class NeewerLightEntity(LightEntity):
 		LOGGER.debug("Orig: "+str(originalColor)+" bright: "+str(originalBrightness))
 
 		for i in range(1,numFrames+1):
-			if not self._isTransitioning:
+			if self._stopTransition.is_set():
 				break
 			newColor = [
 				int(originalColor[0] + i * (endColor[0] - originalColor[0]) / numFrames),
@@ -191,7 +204,10 @@ class NeewerLightEntity(LightEntity):
 			else:
 				LOGGER.debug("msPerFrame exceeded due to long set_color, running as fast as possible")
 		LOGGER.info("Finished transition")
-		self._isTransitioning = False
+
+		self._stopTransition.clear()
+		self._isTransitioning.clear()
+		self._hasExitedTransition.set()
 
 
 

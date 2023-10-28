@@ -5,9 +5,9 @@ import colorsys
 import asyncio
 import logging
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 LOGGER = logging.getLogger("NeewerLight")
-LOGGER.setLevel(logging.DEBUG)
+LOGGER.setLevel(logging.WARN)
 
 NEEWER_SERVICE_UUID = "69400001-b5a3-f393-e0a9-e50e24dcca99"
 NEEWER_CONTROL_UUID = "69400002-b5a3-f393-e0a9-e50e24dcca99"
@@ -62,7 +62,7 @@ class NeewerLight:
         return self._brightness
 
     async def _write(self, characteristic, data):
-        LOGGER.debug("Writing: "+(''.join(format(x, ' 03x') for x in data))+" to "+characteristic)
+        # LOGGER.debug("Writing: "+(''.join(format(x, ' 03x') for x in data))+" to "+characteristic)
         #try:
         if not self.device.is_connected:
             await self.device.connect(timeout=5.0)
@@ -87,10 +87,10 @@ class NeewerLight:
         h = int(h*360)
         s = int(s*100)
         v = int(self._brightness*100/256) # don't use v from colour, keep the same brightness
-        LOGGER.info("turned into HSV: "+str(h)+" "+str(s)+" "+str(v))
+        # LOGGER.info("turned into HSV: "+str(h)+" "+str(s)+" "+str(v))
         if brightness is not None:
             v = int(brightness*100/256)
-            LOGGER.info("Brightness overwrite: "+str(v))
+            # LOGGER.info("Brightness overwrite: "+str(v))
             self._brightness = brightness # TODO temporary as we don't read the color back from the light at the moment
         cmd = self.composeCommand(NEEWER_COMMAND_RGB, [h&0xFF,(h>>8)&0xFF,s&0xff,v&0xff])
         await self._write(NEEWER_CONTROL_UUID, cmd)
